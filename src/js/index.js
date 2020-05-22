@@ -2,25 +2,30 @@
 
 const TILE_SIZE = 85;
 
-class Entity{
-    constructor(positionX,positionY,type) {
+class Entity {
+    constructor(positionX, positionY, type) {
         this.positionX = positionX;
         this.positionY = positionY;
         this.type = type;
     }
 
-    render(){
+    render() {
         const entity = document.createElement('div');
-        entity.className = `entity entity--${this.type}`;  
-        return entity 
+        entity.className = `entity entity--${this.type}`;
+        return entity
     }
 
-    mount(parent){
+    mount(parent) {
         this.element = this.render();
         parent.appendChild(this.element);
         this.update();
     }
-    update(){
+
+    unmount() {
+        this.element.remove();
+    }
+
+    update() {
         this.element.style.left = `${this.positionX * TILE_SIZE}px`;
         this.element.style.top = `${this.positionY * TILE_SIZE}px`;
     }
@@ -33,7 +38,8 @@ class Pacman {
         this.maxLeft = stage.width;
         this.maxTop = stage.height;
         this.mouth = false;
-        this.collisionDetection = stage.collisionDetection;
+        this.stage = stage;
+        this.isAlive = true;
     }
 
     mouthSwitch() {
@@ -41,33 +47,51 @@ class Pacman {
     }
 
     move(direction) {
-        this.face = direction;
-        if (this.face === "up") {
-            if (this.top !== 0) {
-                this.top -= 1;
-            }
-        } else if (this.face === "down") {
-            if (this.top !== this.maxTop) {
-                this.top += 1;
-            }
-        } else if (this.face === "left") {
-            if (this.left !== 0) {
-                this.left -= 1;
-            }
-        } else if (this.face === "right") {
-            if (this.left !== this.maxLeft) {
-                this.left += 1;
-            }
-        }
-        //this.collisionDetection(this.left,this.top);
-        this.mouthSwitch();
-        this.update();
+        if (this.isAlive) {
 
+            this.face = direction;
+            let x = this.left;
+            let y = this.top
+            if (this.face === "up") {
+                if (this.top !== 0) {
+                    y -= 1;
+                }
+            } else if (this.face === "down") {
+                if (this.top !== this.maxTop) {
+                    y += 1;
+                }
+            } else if (this.face === "left") {
+                if (this.left !== 0) {
+                    x -= 1;
+                }
+            } else if (this.face === "right") {
+                if (this.left !== this.maxLeft) {
+                    x += 1;
+                }
+            }
+
+            let collision = this.stage.collisionDetection(x, y);
+            if (!collision || collision.type !== "wall") {
+                this.left = x;
+                this.top = y;
+                if (collision?.type === "apple") {
+                    this.stage.score += 1;
+                    this.stage.removeEntity(collision);
+                } else if (collision?.type === "bomb") {
+                    let chanceToDie = Math.floor(Math.random() * 2);
+                    if (chanceToDie) {
+                        this.isAlive = false;
+                    }
+                    this.stage.removeEntity(collision);
+                }
+            }
+            this.mouthSwitch();
+            this.update();
+        }
     }
 
     render() {
         const pac = document.createElement('div');
-        pac.className = "entity entity--pac pacboy-active-light";
 
         document.addEventListener('keydown', (event) => {
             if (event.key === 'ArrowRight') {
@@ -107,29 +131,39 @@ class Pacman {
         } else {
             this.element.style.backgroundPositionX = `${TILE_SIZE}px`;
         }
+
+        this.element.className = this.isAlive ?
+            "entity entity--pac pacboy-active-light" :
+            "entity entity--tomb";
     }
 }
 
 const app = document.querySelector('#app')
 
 class Stage {
-    constructor(width, height) {
+    constructor(width, height, data) {
         this.width = width;
         this.height = height;
         this.entities = [];
+        this.score = 0;
+        this.data = data;
+    }
+
+    removeEntity(entity) {
+        const idx = this.entities.indexOf(entity);
+        this.entities.splice(idx, 1);
+        entity.unmount();
     }
 
     appendPacman() {
         let pac = new Pacman(0, 0, this);
         pac.mount(this.element)
-        
+
     }
-    appendEntity(x,y,type) {
+    appendEntity(x, y, type) {
         let entity = new Entity(x, y, type);
         entity.mount(this.element)
         this.entities.push(entity);
-        console.log(this.entities);
-        
     }
 
     render() {
@@ -138,30 +172,43 @@ class Stage {
         return stage;
     }
 
+    createEntities() {
+        this.data?.apples?.forEach(apple => {
+            this.appendEntity(apple.x, apple.y, "apple");
+        })
+        this.data?.bombs?.forEach(bomb => {
+            this.appendEntity(bomb.x, bomb.y, "bomb");
+        })
+        this.data?.walls?.forEach(wall => {
+            this.appendEntity(wall.x, wall.y, "wall");
+        })
+    }
+
     mount(parent) {
         this.element = this.render();
         parent.appendChild(this.element);
         this.appendPacman();
-        this.appendEntity(3,2,'wall');
-
+        this.createEntities();
     }
-    collisionDetection(x,y){ console.log('here');
-                        let StorageItemElm = null;
+    collisionDetection(x, y) {
+        let StorageItemElm = null;
         this.entities.forEach((item) => {
-            if(x === item.positionX && y === item.positionY) {
-            StorageItemElm = item.element
-        } 
-
-        }
-       
-        )
-        return StorageItemElm
+            if (x === item.positionX && y === item.positionY) {
+                StorageItemElm = item;
+            }
+        })
+        return StorageItemElm;
     }
-
 }
 
-let stage = new Stage(4, 5);
-stage.mount(app);
+let stageWidth = 11;
+let stageHeight = 6;
 
+fetch(`http://bootcamp.podlomar.org/api/pacman?width=${stageWidth}&height=${stageHeight}`)
+    .then((res) => res.json())
+    .then((json) => {
+        console.log(json)
+        let stage = new Stage(stageWidth, stageHeight, json);
+        stage.mount(app);
 
-
+    })
