@@ -2,6 +2,30 @@
 
 const TILE_SIZE = 85;
 
+class Entity{
+    constructor(positionX,positionY,type) {
+        this.positionX = positionX;
+        this.positionY = positionY;
+        this.type = type;
+    }
+
+    render(){
+        const entity = document.createElement('div');
+        entity.className = `entity entity--${this.type}`;  
+        return entity 
+    }
+
+    mount(parent){
+        this.element = this.render();
+        parent.appendChild(this.element);
+        this.update();
+    }
+    update(){
+        this.element.style.left = `${this.positionX * TILE_SIZE}px`;
+        this.element.style.top = `${this.positionY * TILE_SIZE}px`;
+    }
+}
+
 class Pacman {
     constructor(left, top, stage) {
         this.left = left;
@@ -9,6 +33,7 @@ class Pacman {
         this.maxLeft = stage.width;
         this.maxTop = stage.height;
         this.mouth = false;
+        this.collisionDetection = stage.collisionDetection;
     }
 
     mouthSwitch() {
@@ -34,8 +59,10 @@ class Pacman {
                 this.left += 1;
             }
         }
+        //this.collisionDetection(this.left,this.top);
         this.mouthSwitch();
         this.update();
+
     }
 
     render() {
@@ -89,11 +116,20 @@ class Stage {
     constructor(width, height) {
         this.width = width;
         this.height = height;
+        this.entities = [];
     }
 
     appendPacman() {
         let pac = new Pacman(0, 0, this);
         pac.mount(this.element)
+        
+    }
+    appendEntity(x,y,type) {
+        let entity = new Entity(x, y, type);
+        entity.mount(this.element)
+        this.entities.push(entity);
+        console.log(this.entities);
+        
     }
 
     render() {
@@ -106,8 +142,26 @@ class Stage {
         this.element = this.render();
         parent.appendChild(this.element);
         this.appendPacman();
+        this.appendEntity(3,2,'wall');
+
     }
+    collisionDetection(x,y){ console.log('here');
+                        let StorageItemElm = null;
+        this.entities.forEach((item) => {
+            if(x === item.positionX && y === item.positionY) {
+            StorageItemElm = item.element
+        } 
+
+        }
+       
+        )
+        return StorageItemElm
+    }
+
 }
 
 let stage = new Stage(4, 5);
 stage.mount(app);
+
+
+
