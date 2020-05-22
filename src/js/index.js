@@ -77,6 +77,8 @@ class Pacman {
                 if (collision?.type === "apple") {
                     this.stage.score += 1;
                     this.stage.removeEntity(collision);
+                    this.stage.update();
+                    
                 } else if (collision?.type === "bomb") {
                     let chanceToDie = Math.floor(Math.random() * 2);
                     if (chanceToDie) {
@@ -148,7 +150,7 @@ class Stage {
         this.score = 0;
         this.data = data;
     }
-
+    
     removeEntity(entity) {
         const idx = this.entities.indexOf(entity);
         this.entities.splice(idx, 1);
@@ -169,6 +171,7 @@ class Stage {
     render() {
         const stage = document.createElement('div');
         stage.className = "container";
+        stage.innerHTML = `<div class="score-Container">Score: <span class="score">0</span></div>`
         return stage;
     }
 
@@ -199,12 +202,18 @@ class Stage {
         })
         return StorageItemElm;
     }
+
+    update(){
+        let score = this.element.querySelector('.score');
+        score.textContent = this.score;
+        console.log();
+    }
 }
 
 let stageWidth = 11;
 let stageHeight = 6;
 
-fetch(`http://bootcamp.podlomar.org/api/pacman?width=${stageWidth}&height=${stageHeight}`)
+fetch(`http://bootcamp.podlomar.org/api/pacman?width=${stageWidth +1}&height=${stageHeight +1}`)
     .then((res) => res.json())
     .then((json) => {
         console.log(json)
